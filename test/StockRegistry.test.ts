@@ -39,15 +39,120 @@ describe("StockRegistry", function () {
       ([dtccSigner, participant1, participant2, participant3] = await ethers.getSigners());
     })
 
+    describe("addEntity", function () {
+      it("Should add an Entity with Stocks", async function () {
+
+        const stocks: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'AAPL',
+          },
+          {
+            quantity: 50,
+            ticker: 'TSLA',
+          }
+        ]
+
+        //DTCC adds an entity
+        await stockRegistry.addEntity(stocks, participant1.address);
+        
+        const [ AAPLStock, TSLAStock ] = await stockRegistry["getStocksOwned(address)"](participant1.address);
+  
+        expect(AAPLStock.ticker).to.equal('AAPL');
+        expect(AAPLStock.quantity).to.equal(100);
+
+        expect(TSLAStock.ticker).to.equal('TSLA');
+        expect(TSLAStock.quantity).to.equal(50);
+      });
+    });
+
     describe("addStock", function () {
-      it("Should add a stock registry", async function () {
+
+      beforeEach(async function() {
+        //Register an entity
+        const stocks: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'TSLA',
+          },
+          {
+            quantity: 50,
+            ticker: 'AAPL',
+          },
+        ]
+
+        //DTCC adds an entity
+        await stockRegistry.addEntity(stocks, participant1.address);
+      })
+
+      it("Should add stocks for an Entity", async function () {
         //DTCC adds a stock
         await stockRegistry.addStock('TSLA', 100, participant1.address);
 
         const [ TSLAStock ] = await stockRegistry["getStocksOwned(address)"](participant1.address);
   
         expect(TSLAStock.ticker).to.equal('TSLA');
-        expect(TSLAStock.quantity).to.equal(100);
+        expect(TSLAStock.quantity).to.equal(200);
+      });
+
+      it("Should fail if entity is not registered", async function () {
+        const removeCall = stockRegistry.addStock('TSLA', 50, participant3.address);
+        await expect(removeCall).to.be.revertedWith('Entity not registered');
+      });
+
+      it("Should reject if not called by the owner", async function () {
+        //Participant 1 attempts to add stocks
+        const addStockCall = stockRegistry.connect(participant1).addStock('TSLA', 100, participant1.address);
+  
+        await expect(addStockCall).to.be.revertedWith('Only owner can call this');
+      });
+    });
+
+    describe("removeStock", function () {
+
+      beforeEach(async function() {
+        //Register an entity
+        const stocks: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'TSLA',
+          },
+          {
+            quantity: 50,
+            ticker: 'AAPL',
+          },
+        ]
+
+        //DTCC adds an entity
+        await stockRegistry.addEntity(stocks, participant1.address);
+      })
+
+      it("Should remove stocks from an entity", async function () {
+        //DTCC removes a stock
+        await stockRegistry.removeStock('TSLA', 50, participant1.address);
+
+        const [ TSLAStock ] = await stockRegistry["getStocksOwned(address)"](participant1.address);
+  
+        expect(TSLAStock.ticker).to.equal('TSLA');
+        expect(TSLAStock.quantity).to.equal(50);
+      });
+
+      it("Should fail if attempting to remove more stocks than available", async function () {
+        const removeCall = stockRegistry.removeStock('TSLA', 150, participant1.address);
+  
+        await expect(removeCall).to.be.revertedWith('insufficient stocks');
+      });
+
+      it("Should fail if entity is not registered", async function () {
+        const removeCall = stockRegistry.removeStock('TSLA', 50, participant3.address);
+  
+        await expect(removeCall).to.be.revertedWith('Entity not registered');
+      });
+
+      it("Should fail if entity is registered but does not own the stock", async function () {
+        const removeCall = stockRegistry.removeStock('GME', 50, participant1.address);
+  
+        await expect(removeCall).to.be.revertedWith('stock not owned by entity');
       });
 
       it("Should reject if not called by the owner", async function () {
@@ -61,12 +166,27 @@ describe("StockRegistry", function () {
     describe("getStocksOwned", function () {
 
       beforeEach(async function() {
-        //DTCC adds a stock
-        await stockRegistry.addStock('TSLA', 100, participant1.address);
-        await stockRegistry.addStock('GME', 100, participant2.address);
-        await stockRegistry.addStock('AAPL', 50, participant2.address);
-        //participant3 has no stocks
 
+        const stocksEntity1: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'TSLA',
+          },
+        ]
+
+        const stocksEntity2: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'GME',
+          },
+          {
+            quantity: 50,
+            ticker: 'AAPL',
+          },
+        ]
+
+        await stockRegistry.addEntity(stocksEntity1, participant1.address);
+        await stockRegistry.addEntity(stocksEntity2, participant2.address);
       })
       it("should get the sender's stocks", async function () {
         //Participant2 wants to view his stocks
@@ -111,10 +231,26 @@ describe("StockRegistry", function () {
 
     describe('getAllStocks', function(){
       beforeEach(async function() {
-        await stockRegistry.addStock('TSLA', 100, participant1.address);
-        await stockRegistry.addStock('GME', 100, participant2.address);
-        await stockRegistry.addStock('AAPL', 50, participant2.address);
-        //participant3 has no stocks
+        const stocksEntity1: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'TSLA',
+          },
+        ]
+
+        const stocksEntity2: StockRegistry.StockStruct[] = [
+          {
+            quantity: 100,
+            ticker: 'GME',
+          },
+          {
+            quantity: 50,
+            ticker: 'AAPL',
+          },
+        ]
+
+        await stockRegistry.addEntity(stocksEntity1, participant1.address);
+        await stockRegistry.addEntity(stocksEntity2, participant2.address);
       })
 
       it('should retrieve all participants and stocks', async function(){

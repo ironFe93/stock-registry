@@ -26,10 +26,57 @@ contract StockRegistry {
         _;
     }
 
-    function addStock(string memory _ticker, uint256 _quantity, address _client) public onlyOwner{
-        Stock memory newStock = Stock(_ticker, _quantity);
-        stocksOwned[_client].push(newStock);
+    //helper function 
+    function compareStrings(string memory a, string memory b) public pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+    }
+
+    //initializes an entity with a set of stocks
+    function addEntity(Stock[] memory stocks, address _client) public onlyOwner{
+        Stock[] memory clientStocks = stocksOwned[_client];
+        require(clientStocks.length == 0, "Entity already exists");
+        
+        for (uint i = 0; i < stocks.length; i++) {
+            stocksOwned[_client].push(Stock(stocks[i].ticker, stocks[i].quantity));  
+        }
         entityRegistry.push(_client);
+    }
+
+    function addStock(string memory _ticker, uint256 _quantity, address _client) public onlyOwner{
+        //check if entity exists
+        Stock[] storage clientStocks = stocksOwned[_client];
+        require(clientStocks.length > 0, "Entity not registered");
+
+        //check if stock exists in entity
+        for (uint i = 0; i < clientStocks.length; i++) {
+            if(compareStrings(clientStocks[i].ticker, _ticker)){
+                Stock storage stock = clientStocks[i];
+                stock.quantity = stock.quantity + _quantity;
+                return;
+            }
+        }
+
+        Stock memory newStock = Stock(_ticker, _quantity);
+        clientStocks.push(newStock);
+    }
+
+    function removeStock(string memory _ticker, uint256 _quantity, address _client) public onlyOwner{
+        //check if entity exists
+        Stock[] storage clientStocks = stocksOwned[_client];
+        require(clientStocks.length > 0, "Entity not registered");
+
+        //check if stock exists in entity
+        for (uint i = 0; i < clientStocks.length; i++) {
+            if(compareStrings(clientStocks[i].ticker, _ticker)){
+                Stock storage stock = clientStocks[i];
+                //check if quantity to be removed is less than or equal stocks owned
+                require(stock.quantity >= _quantity, 'insufficient stocks');
+                stock.quantity = stock.quantity - _quantity;
+                return;
+            }
+        }
+
+        revert('stock not owned by entity');
     }
 
     function getStocksOwned() public view returns (Stock[] memory) {
