@@ -21,7 +21,7 @@ describe("StockRegistry", function () {
       const stockRegistryFactory = await ethers.getContractFactory("StockRegistry");
       const stockRegistry = await stockRegistryFactory.deploy(dtccSigner.address);
 
-      const queriedOwner = await stockRegistry.getOwner();
+      const queriedOwner = await stockRegistry.getRegistryOwner();
 
       expect(queriedOwner).to.equal(dtccSigner.address);
     });
@@ -54,7 +54,7 @@ describe("StockRegistry", function () {
         ]
 
         //DTCC adds an entity
-        await stockRegistry.addEntity(stocks, participant1.address);
+        await stockRegistry.addOwner(stocks, participant1.address);
         
         const [ AAPLStock, TSLAStock ] = await stockRegistry["getStocksOwned(address)"](participant1.address);
   
@@ -82,7 +82,7 @@ describe("StockRegistry", function () {
         ]
 
         //DTCC adds an entity
-        await stockRegistry.addEntity(stocks, participant1.address);
+        await stockRegistry.addOwner(stocks, participant1.address);
       })
 
       it("Should add stocks for an Entity", async function () {
@@ -97,14 +97,14 @@ describe("StockRegistry", function () {
 
       it("Should fail if entity is not registered", async function () {
         const removeCall = stockRegistry.addStock('TSLA', 50, participant3.address);
-        await expect(removeCall).to.be.revertedWith('Entity not registered');
+        await expect(removeCall).to.be.revertedWith('owner not registered');
       });
 
       it("Should reject if not called by the owner", async function () {
         //Participant 1 attempts to add stocks
         const addStockCall = stockRegistry.connect(participant1).addStock('TSLA', 100, participant1.address);
   
-        await expect(addStockCall).to.be.revertedWith('Only owner can call this');
+        await expect(addStockCall).to.be.revertedWith('Only registry owner can call this');
       });
     });
 
@@ -124,7 +124,7 @@ describe("StockRegistry", function () {
         ]
 
         //DTCC adds an entity
-        await stockRegistry.addEntity(stocks, participant1.address);
+        await stockRegistry.addOwner(stocks, participant1.address);
       })
 
       it("Should remove stocks from an entity", async function () {
@@ -146,20 +146,20 @@ describe("StockRegistry", function () {
       it("Should fail if entity is not registered", async function () {
         const removeCall = stockRegistry.removeStock('TSLA', 50, participant3.address);
   
-        await expect(removeCall).to.be.revertedWith('Entity not registered');
+        await expect(removeCall).to.be.revertedWith('owner not registered');
       });
 
       it("Should fail if entity is registered but does not own the stock", async function () {
         const removeCall = stockRegistry.removeStock('GME', 50, participant1.address);
   
-        await expect(removeCall).to.be.revertedWith('stock not owned by entity');
+        await expect(removeCall).to.be.revertedWith('stock not found');
       });
 
       it("Should reject if not called by the owner", async function () {
         //Participant 1 attempts to add stocks
         const addStockCall = stockRegistry.connect(participant1).addStock('TSLA', 100, participant1.address);
   
-        await expect(addStockCall).to.be.revertedWith('Only owner can call this');
+        await expect(addStockCall).to.be.revertedWith('Only registry owner can call this');
       });
     });
 
@@ -185,8 +185,8 @@ describe("StockRegistry", function () {
           },
         ]
 
-        await stockRegistry.addEntity(stocksEntity1, participant1.address);
-        await stockRegistry.addEntity(stocksEntity2, participant2.address);
+        await stockRegistry.addOwner(stocksEntity1, participant1.address);
+        await stockRegistry.addOwner(stocksEntity2, participant2.address);
       })
       it("should get the sender's stocks", async function () {
         //Participant2 wants to view his stocks
@@ -202,7 +202,7 @@ describe("StockRegistry", function () {
       it("Should reject if owner calls method without specifying an address", async function () {
         const getStocksOwnedCall = stockRegistry["getStocksOwned()"]();
   
-        await expect(getStocksOwnedCall).to.be.revertedWith('Please Specify an address');
+        await expect(getStocksOwnedCall).to.be.revertedWith('Please specify an address');
       });
 
       it("should get participant stocks if owner specifies address", async function () {
@@ -249,8 +249,8 @@ describe("StockRegistry", function () {
           },
         ]
 
-        await stockRegistry.addEntity(stocksEntity1, participant1.address);
-        await stockRegistry.addEntity(stocksEntity2, participant2.address);
+        await stockRegistry.addOwner(stocksEntity1, participant1.address);
+        await stockRegistry.addOwner(stocksEntity2, participant2.address);
       })
 
       it('should retrieve all participants and stocks', async function(){
@@ -266,11 +266,11 @@ describe("StockRegistry", function () {
 
       })
 
-      it('should fail if not called by owner', async function(){
+      it('should fail if not called by registry owner', async function(){
         //participant1 tries to access all stocks
         const getAllStocksCall = stockRegistry.connect(participant1).getAllStocks();
 
-        await expect(getAllStocksCall).to.be.rejectedWith('Only owner can call this');
+        await expect(getAllStocksCall).to.be.rejectedWith('Only registry owner can call this');
       })
     })
   })

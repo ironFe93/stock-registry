@@ -7,22 +7,22 @@ contract StockRegistry {
         uint256 quantity;
     }
 
-    struct Entity {
+    struct StockOwner {
         address wallet;
         Stock[] stocks;
     }
 
-    address private owner;
+    address private registryOwner;
 
     mapping(address => Stock[]) private stocksOwned;
-    address[] private entityRegistry;
+    address[] private stockOwnerRegistry;
 
-    constructor(address _owner) {
-        owner = _owner;
+    constructor(address _registryOwner) {
+        registryOwner = _registryOwner;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this");
+    modifier onlyRegistryOwner() {
+        require(msg.sender == registryOwner, "Only registry owner can call this");
         _;
     }
 
@@ -31,23 +31,23 @@ contract StockRegistry {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 
-    //initializes an entity with a set of stocks
-    function addEntity(Stock[] memory stocks, address _client) public onlyOwner{
+    //initializes an owner with a set of stocks
+    function addOwner(Stock[] memory stocks, address _client) public onlyRegistryOwner{
         Stock[] memory clientStocks = stocksOwned[_client];
-        require(clientStocks.length == 0, "Entity already exists");
+        require(clientStocks.length == 0, "owner already exists");
         
         for (uint i = 0; i < stocks.length; i++) {
             stocksOwned[_client].push(Stock(stocks[i].ticker, stocks[i].quantity));  
         }
-        entityRegistry.push(_client);
+        stockOwnerRegistry.push(_client);
     }
 
-    function addStock(string memory _ticker, uint256 _quantity, address _client) public onlyOwner{
-        //check if entity exists
+    function addStock(string memory _ticker, uint256 _quantity, address _client) public onlyRegistryOwner{
+        //check if owner exists
         Stock[] storage clientStocks = stocksOwned[_client];
-        require(clientStocks.length > 0, "Entity not registered");
+        require(clientStocks.length > 0, "owner not registered");
 
-        //check if stock exists in entity
+        //check if stock exists in owner
         for (uint i = 0; i < clientStocks.length; i++) {
             if(compareStrings(clientStocks[i].ticker, _ticker)){
                 Stock storage stock = clientStocks[i];
@@ -60,12 +60,12 @@ contract StockRegistry {
         clientStocks.push(newStock);
     }
 
-    function removeStock(string memory _ticker, uint256 _quantity, address _client) public onlyOwner{
-        //check if entity exists
+    function removeStock(string memory _ticker, uint256 _quantity, address _client) public onlyRegistryOwner{
+        //check if owner exists
         Stock[] storage clientStocks = stocksOwned[_client];
-        require(clientStocks.length > 0, "Entity not registered");
+        require(clientStocks.length > 0, "owner not registered");
 
-        //check if stock exists in entity
+        //check if stock exists in owner
         for (uint i = 0; i < clientStocks.length; i++) {
             if(compareStrings(clientStocks[i].ticker, _ticker)){
                 Stock storage stock = clientStocks[i];
@@ -76,28 +76,28 @@ contract StockRegistry {
             }
         }
 
-        revert('stock not owned by entity');
+        revert('stock not found');
     }
 
     function getStocksOwned() public view returns (Stock[] memory) {
-        require(msg.sender != owner, "Please Specify an address");
+        require(msg.sender != registryOwner, "Please specify an address");
         return stocksOwned[msg.sender];
     }
 
-    function getStocksOwned(address stockOwner) public onlyOwner view returns (Stock[] memory) {
+    function getStocksOwned(address stockOwner) public onlyRegistryOwner view returns (Stock[] memory) {
         return stocksOwned[stockOwner];
     }
 
-    function getAllStocks() public onlyOwner view returns (Entity[] memory) {
-        Entity[] memory entities = new Entity[](entityRegistry.length);
-        for (uint i = 0; i < entityRegistry.length; i++) {
-            Entity memory entity = Entity(entityRegistry[i], stocksOwned[entityRegistry[i]]);
-            entities[i] = entity;
+    function getAllStocks() public onlyRegistryOwner view returns (StockOwner[] memory) {
+        StockOwner[] memory stockOwners = new StockOwner[](stockOwnerRegistry.length);
+        for (uint i = 0; i < stockOwnerRegistry.length; i++) {
+            StockOwner memory stockOwner = StockOwner(stockOwnerRegistry[i], stocksOwned[stockOwnerRegistry[i]]);
+            stockOwners[i] = stockOwner;
         }
-        return entities;
+        return stockOwners;
     }
 
-    function getOwner() public view returns (address) {
-        return owner;
+    function getRegistryOwner() public view returns (address) {
+        return registryOwner;
     }
 }
